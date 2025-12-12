@@ -21,6 +21,8 @@ async function run() {
       const text = await res.text();
       const matches = [...text.matchAll(new RegExp(`https://www\\.tiktok\\.com/@${user}/video/(\\d+)`, "g"))];
 
+      console.log(matches.length)
+      
       if (!seen[user]) seen[user] = [];
 
       if (matches.length === 0) continue;
@@ -58,5 +60,5 @@ async function sendWebhook(user, videoId) {
     body: JSON.stringify({ content: `📣 **${user} posted a new TikTok!**\n${url}` }),
   });
 }
-console.log(matches.length)
+
 run();
