@@ -21,14 +21,26 @@ async function run() {
       const text = await res.text();
       const matches = [...text.matchAll(new RegExp(`https://www\\.tiktok\\.com/@${user}/video/(\\d+)`, "g"))];
 
+      if (!seen[user]) seen[user] = [];
+
+      if (matches.length === 0) continue;
+
+      // Send the **latest video** if first run for this user
+      if (seen[user].length === 0) {
+        const latestId = matches[0][1];
+        await sendWebhook(user, latestId);
+        seen[user].push(latestId);
+      }
+
+      // Then handle all new videos normally
       for (const match of matches) {
         const id = match[1];
-        if (!seen[user]) seen[user] = [];
         if (!seen[user].includes(id)) {
           await sendWebhook(user, id);
           seen[user].push(id);
         }
       }
+
     } catch (err) {
       console.error(`Error fetching ${user}:`, err);
     }
@@ -36,6 +48,7 @@ async function run() {
 
   fs.writeFileSync(FILE, JSON.stringify(seen, null, 2));
 }
+
 
 async function sendWebhook(user, videoId) {
   const url = `https://www.tiktok.com/@${user}/video/${videoId}`;
