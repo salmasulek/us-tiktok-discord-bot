@@ -45,5 +45,5 @@ async function sendWebhook(user, videoId) {
     body: JSON.stringify({ content: `📣 **${user} posted a new TikTok!**\n${url}` }),
   });
 }
-
+console.log(matches.length)
 run();
