@@ -3,7 +3,6 @@ const fs = require("fs");
 
 const WEBHOOK_URL = process.env.DISCORD_WEBHOOK;
 
-// List of TikTok creators
 const CREATORS = [
   "Danaarose",
   "Eloisedufka",
@@ -14,7 +13,6 @@ const CREATORS = [
 
 const FILE = "posts.json";
 
-// Read previously sent posts
 let seen = {};
 try {
   seen = JSON.parse(fs.readFileSync(FILE));
@@ -24,6 +22,7 @@ try {
 
 async function sendWebhook(user, videoId) {
   const url = `https://www.tiktok.com/@${user}/video/${videoId}`;
+  console.log(`Sending webhook: ${url}`); // Debugging
   await fetch(WEBHOOK_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -33,33 +32,37 @@ async function sendWebhook(user, videoId) {
 
 async function run() {
   for (const user of CREATORS) {
-    const rssUrl = `https://www.tiktok.com/@${user}/rss`;
+    const profileUrl = `https://www.tiktok.com/@${user}`;
+
+    console.log(`Scraping profile for: ${user}`); // Debugging
 
     try {
-      const res = await fetch(rssUrl);
+      const res = await fetch(profileUrl);
       const text = await res.text();
 
-      // Match all video URLs
-      const matches = [...text.matchAll(new RegExp(`https://www\\.tiktok\\.com/@${user}/video/(\\d+)`, "g"))];
+      // Find all video IDs from the profile page
+      const matches = [...text.matchAll(new RegExp(`"videoId":"(\\d+)"`, "g"))];
 
       if (!seen[user]) seen[user] = [];
 
+      console.log(`Found ${matches.length} videos for ${user}`); // Debugging
+
       if (matches.length === 0) {
-        console.log(`No videos found for ${user} (RSS might be blocked)`);
+        console.log(`No videos found for ${user} (profile might be private or empty)`); // Debugging
         continue;
       }
 
-      // First run: send latest TikTok
       if (seen[user].length === 0) {
         const latestId = matches[0][1];
+        console.log(`First time post for ${user}, sending: ${latestId}`); // Debugging
         await sendWebhook(user, latestId);
         seen[user].push(latestId);
       }
 
-      // Send any new TikToks
       for (const match of matches) {
         const id = match[1];
         if (!seen[user].includes(id)) {
+          console.log(`New video for ${user}: ${id}`); // Debugging
           await sendWebhook(user, id);
           seen[user].push(id);
         }
@@ -73,5 +76,4 @@ async function run() {
   fs.writeFileSync(FILE, JSON.stringify(seen, null, 2));
 }
 
-// Run the bot
 run();
