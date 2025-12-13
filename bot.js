@@ -40,8 +40,8 @@ async function run() {
       const res = await fetch(profileUrl);
       const text = await res.text();
 
-      // Find all video IDs from the profile page
-      const matches = [...text.matchAll(new RegExp(`"videoId":"(\\d+)"`, "g"))];
+      // Find all video IDs from the TikTok profile page using a more robust regex
+      const matches = [...text.matchAll(/"videoId":"(\d+)"/g)];
 
       if (!seen[user]) seen[user] = [];
 
@@ -52,19 +52,24 @@ async function run() {
         continue;
       }
 
+      // If this is the first time the bot has run for this creator, pick the most recent (last) video
       if (seen[user].length === 0) {
-        const latestId = matches[0][1];
+        const latestId = matches[matches.length - 1][1]; // Get the last uploaded video
         console.log(`First time post for ${user}, sending: ${latestId}`); // Debugging
         await sendWebhook(user, latestId);
         seen[user].push(latestId);
-      }
+      } else {
+        // Check for new videos since the last video posted
+        const latestId = matches[matches.length - 1][1]; // Get the most recent video
+        const lastPostedId = seen[user][0]; // ID of the last posted video
 
-      for (const match of matches) {
-        const id = match[1];
-        if (!seen[user].includes(id)) {
-          console.log(`New video for ${user}: ${id}`); // Debugging
-          await sendWebhook(user, id);
-          seen[user].push(id);
+        // If the latest video is different from the last posted video, send it
+        if (latestId !== lastPostedId) {
+          console.log(`New video for ${user}: ${latestId}`); // Debugging
+          await sendWebhook(user, latestId);
+          seen[user] = [latestId]; // Update with the latest video ID
+        } else {
+          console.log(`No new videos for ${user}. Latest ID: ${latestId}, Last posted: ${lastPostedId}`); // Debugging
         }
       }
 
@@ -73,7 +78,9 @@ async function run() {
     }
   }
 
+  // Save the list of seen video IDs to avoid sending duplicates
   fs.writeFileSync(FILE, JSON.stringify(seen, null, 2));
 }
 
+// Run the bot
 run();
